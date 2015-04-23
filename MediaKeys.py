@@ -6,18 +6,13 @@ import dbus, gobject
 from dbus.mainloop.glib import DBusGMainLoop
 
 APP_ID = "MediaKeys"
-CMD = "curl"
-HOST = "localhost"
-PORT = "8000"
 VERBOSE = (len(sys.argv) == 2) 
 
-def sendMusicControlCmd(action):
-	cmdArg1 = "-s"
-	cmdArg2 = "http://" + HOST + ":" + PORT + "/music?" + action
+def runCmd(cmd):
 	if VERBOSE:
-		print "Running command: " + CMD + " " + cmdArg1 + " " + cmdArg2
+		print "Running command: " + cmd
 	try:
-		subprocess.call([CMD, cmdArg1, cmdArg2])
+		ret = subprocess.call(cmd, shell=True)
 	except subprocess.CalledProcessError:
 		print "Failed to run " + cmdString
 		pass
@@ -25,11 +20,28 @@ def sendMusicControlCmd(action):
 		print "Could not find file to run"
 		pass
 
+	return ret;
+
+def sendMusicControlCmd(action):
+	cmd = "wget -q -O /dev/null http://localhost:8000/music?" + action
+	return runCmd(cmd)
+
+def sendiTunesCmd(action):
+	cmd = "/home/mwettlaufer/scripts/iTunesControl.sh " + action
+	return runCmd(cmd)
+
 def mediakey_pressed(app, action):
    if app == APP_ID:
 		if VERBOSE:
 			print action + " key pressed."
-		sendMusicControlCmd(action)
+		if sendiTunesCmd(action):
+			if VERBOSE:
+				print "Failed to run command"
+			if sendMusicControlCmd(action):
+				if VERBOSE:
+					print "Failed to run command"
+				print "Nowhere to send Media Keypress Event"
+				print "Dropping on the floor"
 
 
 def main():
@@ -44,6 +56,7 @@ def main():
 		if VERBOSE:
 			print "Bound media keys with DBUS"
 	except dbus.DBusException:
+		print "Failed to bind media keys with DBUS"
 		exit(0)
 
 	loop = gobject.MainLoop()
